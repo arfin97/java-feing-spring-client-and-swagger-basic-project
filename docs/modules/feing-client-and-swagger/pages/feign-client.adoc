@@ -1,0 +1,225 @@
+= Feign Client
+
+Feign is a declarative web service client. It makes writing web service clients easier.
+
+* To use Feign create an interface and annotate it.
+
+* A great thing about using Feign is that we don't have to write any code for calling the service, other than an interface definition.
+
+== Configuration
+. Create a spring boot project from start.spring.io with Spring-Web dependency.
+
+. Add the following dependency.
+[NOTE]
+We won't fined Feign in spring boot starter. We need to add it from maven repository.
+
+[source,xml]
+.pom.xml
+----
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+----
+
+3. We need to add `@EnableFeignClients` to our main class
+
+[source,java]
+.FeignApplication.java
+----
+@SpringBootApplication
+@EnableFeignClients
+public class FeingApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(FeingApplication.class, args);
+	}
+
+}
+----
+
+== Creating Feign Client
+We need to make a feign client to communicate with the outside.
+
+* In this example we will fetch data from JSONPlaceHoler site.
+
+[NOTE]
+To make POJO from JSON use JSON2POJO site.
+
+We will use /user API for our project.
+
+[source,java]
+.FeignClient.java
+----
+package com.example.feing.repo;
+
+import com.example.feing.dto.UserResponse;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import java.util.List;
+
+@FeignClient(url = "https://jsonplaceholder.typicode.com/", name = "USER-CLIENT")
+public interface UserClient {
+    @GetMapping("/users")
+    public List<UserResponse> getUsers();
+}
+
+----
+
+[NOTE]
+Like rest template, here we don't need to specify any load balace or intiate a new method.
+It just does what it does!
+
+== Feign Client Configuration
+It's very important to understand that each Feign client is composed of a set of customizable components.
+
+The above class contains these beans:
+
+* Decoder – ResponseEntityDecoder, which wraps SpringDecoder, used to decode the Response
+* Encoder – SpringEncoder, used to encode the RequestBody
+* Logger – Slf4jLogger is the default logger used by Feign
+* Contract – SpringMvcContract, which provides annotation processing
+* Feign-Builder – HystrixFeign.Builder used to construct the components
+* Client – LoadBalancerFeignClient or default Feign client
+
+== Custom Beans Configuration
+In the event that we want to customize one or more of these beans, we can override them using a @Configuration class, which we then add to the FeignClient annotation:
+
+[source,java]
+.FeignClient.java
+----
+@FeignClient(value = "jplaceholder",
+  url = "https://jsonplaceholder.typicode.com/",
+  configuration = MyClientConfiguration.class)
+----
+
+[source,java]
+.MyClientConfiguration.java
+----
+@Configuration
+public class MyClientConfiguration {
+ 
+    @Bean
+    public OkHttpClient client() {
+        return new OkHttpClient();
+    }
+}
+----
+
+
+In this example, we tell Feign to use OkHttpClient instead of the default one in order to support HTTP/2.
+
+Feign supports multiple clients for different use cases, including the ApacheHttpClient, which sends more headers with the request – for example, Content-Length, which some servers expect.
+
+* let's not forget to add the required dependencies
+
+[source,xml]
+.pom.xml
+----
+<dependency>
+    <groupId>io.github.openfeign</groupId>
+    <artifactId>feign-okhttp</artifactId>
+</dependency>
+ 
+<dependency>
+    <groupId>io.github.openfeign</groupId>
+    <artifactId>feign-httpclient</artifactId>
+</dependency>
+----
+
+== Configuration Using Properties
+[source,xml]
+.applicatoin.properties
+----
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
+----
+
+Using client name
+
+[source,xml]
+.applicatoin.properties
+----
+feign:
+  client:
+    config:
+      jplaceholder:
+----
+
+== Interceptors
+The interceptors can perform a variety of implicit tasks, from authentication to logging, for every HTTP request/response.
+
+let's declare a request interceptor that adds basic authentication to each request:
+
+[source,java]
+.Interceptors.java
+----
+@Bean
+public RequestInterceptor requestInterceptor() {
+  return requestTemplate -> {
+      requestTemplate.header("user", username);
+      requestTemplate.header("password", password);
+      requestTemplate.header("Accept", ContentType.APPLICATION_JSON.getMimeType());
+  };
+}
+----
+
+Also, to add the interceptor to the request chain, we just need to add this bean to our @Configuration class,
+
+[source,xml]
+.applicatoin.properties
+----
+feign:
+  client:
+    config:
+      default:
+        requestInterceptors:
+          com.baeldung.cloud.openfeign.JSONPlaceHolderInterceptor
+----
+
+== Hystrix Support
+Feign supports Hystrix, so if we have enabled it, we can implement the fallback pattern.
+To achieve the goal, we need to enable Hystrix adding feign.hystrix.enabled=true in the properties file.
+
+[source,java]
+.Interceptors.java
+----
+@Component
+public class JSONPlaceHolderFallback implements JSONPlaceHolderClient {
+
+    @Override
+    public List<Post> getPosts() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Post getPostById(Long postId) {
+        return null;
+    }
+}
+----
+
+[source,java]
+.Interceptors.java
+----
+@FeignClient(value = "jplaceholder",
+  url = "https://jsonplaceholder.typicode.com/",
+  fallback = JSONPlaceHolderFallback.class)
+public interface JSONPlaceHolderClient {
+    // APIs
+}
+----
+
+== Logging
+For each Feign client, a logger is created by default.
+
+REFERENCE:
+
+* https://www.youtube.com/watch?v=_MMf2SvNqxo&t=700s[Spring Cloud Feign - Declarative REST Client]
+* https://www.baeldung.com/spring-cloud-openfeign[Introduction to Spring Cloud OpenFeign]

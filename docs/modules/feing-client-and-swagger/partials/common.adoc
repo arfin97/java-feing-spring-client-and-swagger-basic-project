@@ -1,0 +1,1 @@
+Partials are AsciiDoc files that contain reusable content snippets such as product descriptions and definitions. They’re stored in the partials directory in a module. A partial file or a tagged portion of a partial file is inserted into a page using the AsciiDoc include directive and the partial’s resource ID.

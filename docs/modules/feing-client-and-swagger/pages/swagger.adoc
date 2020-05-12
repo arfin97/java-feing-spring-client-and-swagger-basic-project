@@ -1,0 +1,422 @@
+:toc:
+
+= Swagger
+
+* Swagger is a too that hepls to
+** Develop APIs
+** Ineract wtih APIs
+** and finally Document API.( This is what we will learn)
+
+* We need Spring Fox in spring projects to use Swagger
+* A lot of dependencies and a configuration class is needed to configure swagger.
+
+== Why Document?
+* Users do not write APIs, But they need to use it. To use it they need some kind of interface and guidance. So we need API documentation.
+* Documenting in separate file is another problem. If we can document inside the code we can have the benefit of
+versioning and easy maintanance.
+* Swagger allows us to do it.
+
+== Swagger
+Swagger is an open platform that takes informations from code to generate API documentation.
+
+== Spring Fox
+Spring fox generates swagger from spring projects. It uses Spring and Swagger annotations.
+
+== Adding Swagger into your project
+You will need 2 dependencies to add swagger into your project
+[NOTE]
+Add these from maven
+
+. https://mvnrepository.com/artifact/io.springfox/springfox-swagger2[springfox-swagger2] (2.9.2)
+* This gives the JSON output of API docs
+* To see them go to: http://localhost:8080/v2/api-docs
+. https://mvnrepository.com/artifact/io.springfox/springfox-swagger-ui[springfox-swagger-ui] (2.9.2)
+* This gives a nice UI of the output of API docs
+* To see it go to: http://localhost:8080/swagger-ui.html
+. Don't forget to add `@EnableSwagger2` annotation into your main class.
+
+[source,xml]
+.pom.xml
+----
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-swagger2</artifactId>
+    <version>2.9.2</version>
+</dependency>
+----
+
+[source,xml]
+.pom.xml
+----
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-swagger-ui</artifactId>
+    <version>2.9.2</version>
+</dependency>
+----
+image::swagger-default-ui.png[]
+
+
+
+== Creating Configuration Class
+Adding `@EnableSwagger2` annotation in the main class will work.
+but if we want more control we'll need to create a separate configuraiton class.
+
+[source,java]
+.SwaggerConfiguration.java
+----
+@Configuration
+@EnableSwagger2
+@Import(SpringDataRestConfiguration.class) //<.>
+public class ApplicationSwaggerConfig {
+    @Bean
+    public Docket employeeApi() { //<.>
+    return new Docket(DocumentationType.SWAGGER_2)
+        .select()
+        .apis(RequestHandlerSelectors.any())
+        .paths(PathSelectors.any())
+        .build();
+    }
+}
+----
+<.> Required annotations: The import annotation is necessary for REST clients.
+<.> Create Docket Object: Docket Object Can be seen as the entire module of swagger. We can have multiple
+Docket Object to make multiple module available under one single UI.
+
+Got to `http://localhost:8080/swagger-ui` go get to the UI.
+
+
+== Customizing API docs
+=== Two Problems
+
+image::swagger-problems.png[]
+
+. A lot of default MVC API and Model infromations are comming. We want to control what swagger shows and don't shows.
+. I need to change the default title, licence, version etc.
+
+
+=== The Docket Object
+The way to customize swagger is to make an instance of an object called `Docket`. Which will contain all your customizations.
+* You need to supply the `Docket` as Spring Bean.
+* If swagger sees a bean that returns `Docket` it will try to figure out the the customizations and apply it.
+
+[source,java]
+.Configuration.java
+----
+@Bean
+public Docket swaggerConfiguration(){
+    return new Docket(DocumentationType.SWAGGER_2)
+            .select() <.>
+            //All configurations goes here
+            .build(); <.>
+}
+----
+<.> Get the builder object from Docket to add the customizations
+<.> When you are done. Add `.build()` to get the customized docket object.
+
+[source,java]
+.Configuration.java
+----
+@Bean
+public Docket swaggerConfiguration(){
+    return new Docket(DocumentationType.SWAGGER_2)
+            .select() <.>
+            .paths(PathSelectors.ant("/api/*"))
+            .apis(RequestHandlersSelectors.basePackage("io.javabrains")) <.>
+            .build();
+}
+----
+<.> It is restricting the paths saying "only look for apis that matches with this `ant` format"
+<.> It is restricting the packages and giveing a base package. So it will disclude all the Spring Default packages
+and only look for APIs that are in that particular package.
+
+
+[source,java]
+.Configuration.java
+----
+@Bean
+public Docket swaggerConfiguration(){
+    return new Docket(DocumentationType.SWAGGER_2)
+            .select() <.>
+            .paths(PathSelectors.ant("/api/*"))
+            .apis(RequestHandlerSelectors.basePackage("io.javabrains")) <.>
+            .build()
+            .apiInfo();
+}
+
+private ApiInfo apiDetails(){
+    return new ApiInfo{
+
+    }
+}
+----
+
+image::swagger-api-info-code.png[]
+
+== Adding More info to APIs
+=== @ApiOperation
+image::swagger-apipoeration-annotation.png[]
+image::swagger-apioperation-annotation-result.png[]
+=== @ApiParam
+image::swagger-apiparam-annotation.png[]
+=== @ApiModel, @ApiModelProperty
+image::swagger-apimodel-apinmodelproperty-annotation.png[]
+image::swagger-apimodel-apinmodelproperty-annotation-result.png[]
+=== @ApiImplicitParameters, @ApiImplicitParameter
+
+[source,java]
+.SomeController.java
+----
+@ApiImplicitParams({
+    @ApiImplicitParam(
+        name = "msisdn",
+        value = "msisdn",
+        required = true,
+        dataType = "Long",
+        paramType = "query",
+        defaultValue = "8801902796143")
+})
+----
+image::swagger-implicit-parameters[]
+
+
+
+== Spring Fox [3.0.0-SNAPSHOT]
+=== Spring REST Docs
+As you add doc annotations it can get cumbersome, so spring came up with an new solution.
+"Hey why don't we move all the doc codes into TEST we write". Spring REST Docs looks at the tests
+and generates API docs for your code.
+
+[NOTE]
+We won't use Spring Fox version 2.9.2 as it has some major bugs. We are using 3.0.0-SNAPSHOT version here.
+To get this version we need to add aditional repository.
+
+*Set Versions for dependencies*: Add this to the properties part of pom.xml file.
+[source,xml]
+.pom.xml
+----
+<properties>
+    <version>3.0.0-SNAPSHOT</version>
+</properties>
+----
+
+
+
+
+*Repository to download snapshot version*
+[source,xml]
+.pom.xml
+----
+<repositories>
+    <repository>
+        <id>jcenter-snapshots</id>
+        <name>jcenter</name>
+        <url>https://jcenter.bintray.com/</url>
+    </repository>
+</repositories>
+----
+
+*To Generate Swagger doc*
+[source,xml]
+.pom.xml
+----
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-swagger2</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
+</dependency>
+----
+
+*To Work with Spring Data REST*
+[source,xml]
+.pom.xml
+----
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-data-rest</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
+</dependency>
+----
+
+*To Enable Swagger UI*
+[source,xml]
+.pom.xml
+----
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-swagger-ui</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
+</dependency>
+----
+
+
+== Customizing Swagger for Your API
+
+=== Customizing Swagger for Models: @ApiModelProperty
+
+Spring is opinionated Save most time when follow conventions Springfox leverages Spring opinions
+- Saves you from annotating everything Maximize what framework can do for you.
+[NOTE]
+For example you don't need to add anything to your entites. It will automatically added to swagger by fields name.
+But if you really want to you can use `@ApiModelProperty(value=“First and last name")` annotation to modify how
+a field will show in Swagger.
+
+`@NotNull, @Min, @Max, @Size` These will not show by default. For example @NotNull means that the value
+is required in that field. But it will not show the red astrix by default in the swagger ui.
+We need to add the following dependencies to make it available.
+[source,xml]
+.pom.xml
+----
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-bean-validators</artifactId>
+    <version>${io.springfox.version}</version>
+</dependency>
+----
+
+We nee to add `@Import(BeanValidatorPluginsConfiguration.class)` in your configuration class.
+
+[NOTE]
+If we use `@ApiModelProperty` with the above library, the `@ApiModelProperty` will get precedence.
+And the mechanism of bean-validators will be over written. To get the same functinality for
+`@NotNull` using `@ApiModelProperty` we need to add `required=true` attribute.
+Meaning using both can be a problem. And the solution is to use `@ApiModelProperty` elaboratly.
+
+=== Customizing APIs for your Endpoints in Controller: @ApiOperation
+To document an endpoint use use @ApiOpertion.
+
+[source,java]
+.SomeController.java
+----
+@ApiOperation(value="Get the default schedule for employees", notes="All employees share the same schedule.")
+@RequestMapping(value = "/schedule", method = RequestMethod.GET)
+public String getSchedule() {
+    return "Your schedule is M-F 9-5";
+}
+----
+
+* Swagger Annotations  @ApiOperation
+- Value: Shows near the title.
+- Notes: After expend description.
+
+
+== Version Managing
+
+Let's say we have a project that looks like the following
+
+image::version-managing.png[]
+
+We need to create a new `Docket` with different path to handle the APIs of V2.
+PathSelectors in Docket Object restrict documentation to certain endpoints based on path.
+
+[source,java]
+.SwaggerConfiguration.java
+----
+new Docket(DocumentationType.SWAGGER_2)
+    .select()
+    .apis(RequestHandlerSelectors.any())
+    .paths(PathSelectors.ant("/v2/**"))
+    .build()
+    .apiInfo(getApiInfo());
+----
+
+== Swagger Groups
+Swagger Groups multiple versions of documentation from single Swagger UI selector on Swagger UI for group
+PathSelectors can filter each version into different Docket Objects and groups.
+
+[source,java]
+.SwaggerConfiguration.java
+----
+new Docket(DocumentationType.SWAGGER_2)
+    .groupName(“employee-api-v2")
+    .select()
+    .apis(RequestHandlerSelectors.any())
+    .paths(PathSelectors.ant("/v2/**"))
+    .build()
+    .apiInfo(getApiInfo());
+----
+
+== A Full Fleged Swagger Configuration Example
+[source,java]
+.SwaggerConfiguration.java
+----
+@Configuration
+@EnableSwagger2
+public class SwaggerConfiguration {
+
+  private final BuildProperties buildProperties;
+
+  public SwaggerConfiguration(BuildProperties buildProperties) {
+    this.buildProperties = buildProperties;
+  }
+
+  @Bean
+  public Docket api() {
+    return new Docket(DocumentationType.SWAGGER_2)
+        .groupName("Product Offer " + buildProperties.getVersion())
+        .select()
+        .apis(RequestHandlerSelectors.basePackage("net.banglalink.apihub.productOffer.controller"))
+        .paths(PathSelectors.any())
+        .build()
+        .apiInfo(
+            new ApiInfoBuilder()
+                .title("Banglalink Product & Offers API")
+                .description("Banglalink Product & Offers REST API")
+                .version(buildProperties.getVersion())
+                .license("© Banglalink Digital Communications Ltd.")
+                .licenseUrl("https://www.banglalink.net")
+                .contact(
+                    new Contact(
+                        "Md. Mazharul Islam",
+                        "https://www.banglalink.net",
+                        "maz.islam@blmanagedservices.com"))
+                .build());
+  }
+}
+
+----
+
+== A Full Fleged API Operation Description Example
+[source,java]
+.SomeController.java
+----
+  @ApiOperation(
+      value = "Get Amar Offers",
+      nickname = "getAmarOffers",
+      notes =
+          "Get  Amar Offers. It will return List of Amar Offers. MSISDN field is required. eg. msisdn = 8801902796143",
+      tags = {
+        "product-offer",
+      })
+  @ApiImplicitParams({
+    @ApiImplicitParam(
+        name = "msisdn",
+        value = "msisdn",
+        required = true,
+        dataType = "Long",
+        paramType = "query",
+        defaultValue = "8801902796143")
+  })
+  @GetMapping(path = "/amar-offers", produces = BanglalinkMediaType.APPLICATION_JSON_VALUE_V1)
+  ResponseEntity<?> getAmarOffers(
+      @ApiParam(value = "Get Amar Offers") @RequestParam(value = "msisdn") Long msisdn);
+----
+
+
+
+
+== Summery
+* Leverage annotations for documentation
+- Bean validator for JSR-303
+- @ApiModelProperty
+- @ApiOperation
+* Documenting different versions of API
+- PathSelectors
+- Swagger groups
+* API Documentation based on code
+- Easy to keep up to date
+
+== Reference
+* https://app.pluralsight.com/library/courses/spring-framework-documenting-spring-data-rest-apis-swagger-springfox/table-of-contents[Spring Framework: Documenting Spring Data Rest APIs with Swagger and Springfox]
+* https://www.youtube.com/watch?v=gduKpLW_vdY[How to add Swagger to Spring Boot - Brain Bytes]
+* https://www.youtube.com/watch?v=8s9I1G4tXhA[How to configure Swagger in Spring Boot - Brain Bytes]
