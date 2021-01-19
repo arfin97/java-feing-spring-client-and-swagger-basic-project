@@ -1,3 +1,5 @@
 # java-feing-spring-client-and-swagger-basic-project
 
 # See the docs > modules > [repo-name] > pages to see the documentation
+https://github.com/arfin97/java-feing-spring-client-and-swagger-basic-project/blob/master/docs/modules/feing-client-and-swagger/pages/feign-client.adoc
+https://github.com/arfin97/java-feing-spring-client-and-swagger-basic-project/blob/master/docs/modules/feing-client-and-swagger/pages/swagger.adoc
